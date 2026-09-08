@@ -1,0 +1,11 @@
+# 環境固有の上書き設定（各自の手元にだけ置く。配布物に入れない）
+local.md
+
+# build-release.sh の出力
+dist/
+
+# OS・エディタ・バックアップの残骸
+.DS_Store
+*.bak*
+*.pre-*
+*~

@@ -1,0 +1,46 @@
+{
+  "name": "kawahara-skills",
+  "owner": {
+    "name": "kazumasakawahara",
+    "url": "https://github.com/kazumasakawahara"
+  },
+  "metadata": {
+    "description": "Agent Skills for deciding, investigating, and inspecting AI work: deliberation-sim, hypothesis-arena, acceptance-inspector.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "deliberation-sim",
+      "source": "./skills/deliberation-sim",
+      "description": "「やるべきか」「どちらを選ぶか」を、賛成・反対・折衷・不在の当事者・裁定者の人格を生成して議論させ、確信度の変化を追跡しながら決める熟議シミュレータ",
+      "version": "0.1.0",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": ["decision", "deliberation", "debate", "japanese"],
+      "strict": false,
+      "skills": ["./"]
+    },
+    {
+      "name": "hypothesis-arena",
+      "source": "./skills/hypothesis-arena",
+      "description": "「なぜそうなのか」「どの説が正しいのか」を、相互排他的な仮説群と擁護者に文献予測と自滅条件を宣言させて競争させ、決着に効く判別読書課題を導く仮説競争シミュレータ",
+      "version": "0.1.0",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": ["research", "hypothesis", "inquiry", "japanese"],
+      "strict": false,
+      "skills": ["./"]
+    },
+    {
+      "name": "acceptance-inspector",
+      "source": "./skills/acceptance-inspector",
+      "description": "AI が「完了しました」と主張する成果物を、作業者と独立した立場で受入基準に照らして検品し、検証項目ごとの根拠と未検証の明示を返す検品補助役",
+      "version": "0.1.0",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": ["acceptance", "inspection", "verification", "japanese"],
+      "strict": false,
+      "skills": ["./"]
+    }
+  ]
+}
