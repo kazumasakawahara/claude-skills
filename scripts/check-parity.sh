@@ -22,10 +22,28 @@ MARK='## 固有欄'
 common_part() { awk -v m="$MARK" '$0 == m { exit } { print }' "$1"; }
 
 if [ -f "$A" ] && [ -f "$B" ]; then
-  if diff -u <(common_part "$A") <(common_part "$B"); then
+  # プロセス置換 <(…) や一時ファイルは /dev/fd・TMPDIR が制限された環境（sandbox 等）で失敗するので、
+  # 文字列で比較し、差分の表示だけ python3 があれば difflib で出す
+  a_part=$(common_part "$A")
+  b_part=$(common_part "$B")
+  if [ "$a_part" = "$b_part" ]; then
     echo "OK  LEDGER common part is identical"
   else
-    echo "NG  LEDGER common part differs (above)" >&2
+    echo "NG  LEDGER common part differs:" >&2
+    if command -v python3 >/dev/null 2>&1; then
+      python3 - "$A" "$B" "$MARK" <<'PY' >&2
+import sys, difflib
+a, b, mark = sys.argv[1:4]
+def common(p):
+    out = []
+    for line in open(p, encoding="utf-8"):
+        if line.rstrip("\n") == mark:
+            break
+        out.append(line)
+    return out
+sys.stderr.writelines(difflib.unified_diff(common(a), common(b), a, b))
+PY
+    fi
     fail=1
   fi
 else
