@@ -53,7 +53,8 @@ Three Japanese-language Agent Skills for Claude: **deliberation-sim** (a multi-p
 ## 配布物の作り方（メンテナ向け）
 
 ```
-scripts/check-parity.sh          # 固有語の混入・LEDGER 写しのずれ・local.md の混入を検査（0 終了で合格）
+scripts/check-parity.sh          # LEDGER 写しのずれ・local.md の混入・固有語の混入を検査（0 終了で合格）
+                                 # 固有語検査は追跡外の scripts/local-terms.txt があるときだけ動く（保守者用。無ければ省略）
 scripts/build-release.sh v0.1.0  # git archive から dist/<name>.zip を 3 本生成（追跡外ファイルは構造的に入らない）
 ```
 

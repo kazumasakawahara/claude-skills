@@ -1,6 +1,9 @@
 # 環境固有の上書き設定（各自の手元にだけ置く。配布物に入れない）
 local.md
 
+# check-parity.sh の固有語リスト（保守者用。無ければその検査は省略される）
+scripts/local-terms.txt
+
 # build-release.sh の出力
 dist/
 
