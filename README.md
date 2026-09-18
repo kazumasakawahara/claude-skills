@@ -8,7 +8,7 @@ Claude 用の自作 Agent Skills を 3 本、公開しています。「決め�
 | **hypothesis-arena** | 調べる道具。問いから相互排他的な仮説群と擁護者を生成し、文献予測と自滅条件を宣言させて競争させ、決着に最も効く判別読書課題を導く仮説競争シミュレータ | 「なぜ〜なのか」「どの説が有力か」「対立する学説を整理したい」「どの文献を読めば決着するか」 | 「〜すべきか」の意思決定（それは deliberation-sim）、単発の事実確認、文献の取得・変換そのもの |
 | **acceptance-inspector** | AI の完了報告を疑う道具。「完了しました」と主張する成果物を、作業者と独立した立場で受入基準に照らして検品し、合否ではなく検証項目ごとの根拠と未検証の明示を返す | サブエージェントや Claude Code が「完了」「テスト通過」と報告した直後、本番反映の前、他者に成果物を渡す前 | 読んで論評する「レビュー」、作業者自身が自分の成果物を自己検品する用途（独立性が満たせない） |
 
-各スキルの詳しい手順は `skills/<name>/SKILL.md` と、同じフォルダの `PROTOCOL.md`・`reference/`・`examples/`・`templates/` にあります。
+各スキルの詳しい手順は `skills/<name>/SKILL.md` と、同じフォルダの `PROTOCOL.md`・`reference/`・`examples/`・`templates/` にあります。acceptance-inspector には人間向けの手順書 `README.md`（作業会話と検品会話の分け方と、そのまま貼れるプロンプト）があります。
 
 ## 入れ方（claude.ai / Claude Desktop）
 
