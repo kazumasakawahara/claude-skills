@@ -12,3 +12,7 @@ dist/
 *.bak*
 *.pre-*
 *~
+
+# Python の実行時の残骸
+__pycache__/
+*.pyc

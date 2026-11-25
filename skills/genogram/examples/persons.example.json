@@ -1,0 +1,21 @@
+{
+ "persons": [
+  {"id": "ichiro", "name": "一郎", "relation": "本人", "sex": "male", "age": 45, "cohabiting": true, "alive": true,
+   "parents": ["shigeru", "kazuko"],
+   "partners": [{"person": "yoko", "status": "divorced", "divorced": "2019-03"}, {"person": "mika", "status": "de_facto"}]},
+  {"id": "shigeru", "name": "茂", "relation": "父", "sex": "male", "cohabiting": false, "alive": false,
+   "partners": [{"person": "kazuko", "status": "married"}]},
+  {"id": "kazuko", "name": "和子", "relation": "母", "sex": "female", "age": 78, "cohabiting": true, "alive": true,
+   "partners": [{"person": "shigeru", "status": "married"}]},
+  {"id": "sachi", "name": "幸", "relation": "妹", "sex": "female", "age": 42, "cohabiting": false, "alive": true,
+   "parents": ["shigeru", "kazuko"]},
+  {"id": "yoko", "name": "洋子", "relation": "前の妻", "sex": "female", "cohabiting": false,
+   "partners": [{"person": "ichiro", "status": "divorced", "divorced": "2019-03"}]},
+  {"id": "aoi", "name": "葵", "relation": "長女", "sex": "female", "age": 17, "cohabiting": true, "alive": true,
+   "parents": ["ichiro", "yoko"]},
+  {"id": "mika", "name": "美香", "relation": "内縁の妻", "sex": "female", "age": 38, "cohabiting": true, "alive": true,
+   "partners": [{"person": "ichiro", "status": "de_facto"}]},
+  {"id": "sora", "name": "空", "relation": "美香の子", "age": 3, "cohabiting": true, "alive": true,
+   "parents": ["mika"]}
+ ]
+}
