@@ -70,9 +70,14 @@ def check(data):
     def val(p, k):
         return (p.get(k) or {}).get("value") if isinstance(p.get(k), dict) else None
 
+    centers = [pid for pid in ids if pmap[pid].get("center") is True]
+    if len(centers) > 1:
+        errors.append(["multiple_center", "中心の人（center）が 2 人以上いる：%s。中心の人は 1 人だけ" % "・".join(centers)])
     parents = {}
     for pid in ids:
         p = pmap[pid]
+        if p.get("center") not in (True, False, None):
+            errors.append(["bad_flag", "%s：center は true／false（中心の人だけ true）" % pid])
         for k in KINSHIP_ATTRS:
             if isinstance(p.get(k), dict) and p[k].get("inferred"):
                 errors.append(["kinship_inferred", "%s：%s に推し量った理由（inferred）が付いている。続柄・性別・生死は、述べられたことだけを書く" % (pid, k)])

@@ -48,7 +48,7 @@ description: 「ジェノグラムを作って」「ジェノグラムにして�
 
 ```json
 {"persons": [
-  {"id": "ichiro", "name": "一郎", "relation": "本人", "sex": "male", "age": 45,
+  {"id": "ichiro", "name": "一郎", "relation": "本人", "center": true, "sex": "male", "age": 45,
    "cohabiting": true, "alive": true,
    "parents": ["shigeru", "kazuko"],
    "partners": [{"person": "yoko", "status": "divorced", "divorced": "2019-03"}]}
@@ -60,9 +60,10 @@ description: 「ジェノグラムを作って」「ジェノグラムにして�
 | `id` | 英小文字の記号。人ごとに別のもの（必須） |
 | `name` | 図に出る名前。仮名・続柄・イニシャル |
 | `relation` | 続柄。伝えられた言葉のまま（「本人」「母」「長女」） |
+| `center` | 中心の人に `true`（1 人だけ）。記号が二重の枠になる。「○○さんを中心に」と頼まれたら、その人に付ける |
 | `sex` | `male`／`female`。伝えられているか、性別の分かる続柄（長男・妻・母など）のときだけ。それ以外は書かない（◇で描かれる） |
 | `age` | 整数。伝えられた数字のまま。計算しない |
-| `cohabiting` | 中心の人と同居なら `true`、別居なら `false` |
+| `cohabiting` | 中心の人と同居なら `true`、別居なら `false`。同居かどうかは、中心の人から見て書く |
 | `alive` | 存命なら `true`、死亡なら `false`（×が付く） |
 | `parents` | 親の `id` の並び。2 人まで |
 | `partners` | 相手ごとに `person`（相手の `id`）と `status`。相手の側にも同じ `status` で書く |

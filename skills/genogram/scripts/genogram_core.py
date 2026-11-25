@@ -4,6 +4,7 @@
 モデルは使わない。標準ライブラリだけで動き、同じ入力からは同じ図が出る。入力は人ごとの記録（形は SKILL.md）。
 - genogram_svg(persons)：SVG の文字列を返す。男性□・女性○・性別の記載なし◇、死亡は×、同居の範囲は破線の囲み、年齢は記号の中。
   資料に書かれていない人（placeholder）は破線の記号と「情報なし」。凡例つき。記号は資料に記載された性別を表す
+  中心の人（"center": true）は二重の枠。印の無い記録では、図は前と変わらない
   2 人の関係の線：婚姻＝二重線、離婚＝二重線に // と年月、事実婚・内縁＝破線、その解消＝破線に // と年月、婚姻外の親どうし＝点線と「婚姻外」
   親族の線は推し量らない。資料に無い親族関係は線を引かず、注記に「資料に記載なし（戸籍で確かめる）」と出す（kinship_gaps）
 - inference_notes(persons)：資料に書かれていない人、推し量った点（親族関係以外）、資料に記載のない親族関係の一覧。図の下の注記に使う
@@ -310,6 +311,15 @@ def genogram_svg(persons):
         else:
             out.append('<path class="%s" d="M %s %s L %s %s L %s %s L %s %s z" fill="#ffffff" stroke="%s" stroke-width="1.6"%s/>' % (
                 cls, _n(cx), _n(cy - h), _n(cx + h), _n(cy), _n(cx), _n(cy + h), _n(cx - h), _n(cy), C_LINE, dash))
+        if p.get("center") is True:                                   # 中心の人：記号の内側にもう 1 本の枠（二重の枠）
+            g = h - 4
+            if sex == "male":
+                out.append('<rect class="center" x="%s" y="%s" width="%s" height="%s" fill="none" stroke="%s" stroke-width="1"/>' % (_n(cx - g), _n(cy - g), _n(2 * g), _n(2 * g), C_LINE))
+            elif sex == "female":
+                out.append('<circle class="center" cx="%s" cy="%s" r="%s" fill="none" stroke="%s" stroke-width="1"/>' % (_n(cx), _n(cy), _n(g), C_LINE))
+            else:
+                out.append('<path class="center" d="M %s %s L %s %s L %s %s L %s %s z" fill="none" stroke="%s" stroke-width="1"/>' % (
+                    _n(cx), _n(cy - g), _n(cx + g), _n(cy), _n(cx), _n(cy + g), _n(cx - g), _n(cy), C_LINE))
         if _val(p, "alive") is False:
             out.append('<g class="dead"><line x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.4"/><line x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.4"/></g>' % (
                 _n(cx - h), _n(cy - h), _n(cx + h), _n(cy + h), C_LINE, _n(cx - h), _n(cy + h), _n(cx + h), _n(cy - h), C_LINE))
@@ -330,6 +340,9 @@ def genogram_svg(persons):
     out.append('<text x="%d" y="%d" font-size="10" fill="%s">記号は資料に記載された性別</text>' % (lx, ly + 10, C_SUB))
     if kinship_gaps(persons):                                          # 記載のない親族関係がある図にだけ出す
         out.append('<text x="%d" y="%d" font-size="10">線の無い親族関係＝資料に記載なし（戸籍で確かめる）</text>' % (lx + 170, ly + 10))
+    if any(p.get("center") is True for p in pmap.values()):          # 中心の人がいる図にだけ出す
+        out.append('<rect x="%d" y="%d" width="12" height="12" fill="#ffffff" stroke="%s"/><rect x="%d" y="%d" width="6" height="6" fill="none" stroke="%s"/>'
+                   '<text x="%d" y="%d" font-size="10">二重の枠＝中心の人</text>' % (lx + 480, ly, C_LINE, lx + 483, ly + 3, C_LINE, lx + 498, ly + 10))
     ly += 18
     out.append('<rect x="%d" y="%d" width="12" height="12" fill="#ffffff" stroke="%s"/><text x="%d" y="%d" font-size="10">男性</text>' % (lx, ly, C_LINE, lx + 16, ly + 10))
     out.append('<circle cx="%d" cy="%d" r="6" fill="#ffffff" stroke="%s"/><text x="%d" y="%d" font-size="10">女性</text>' % (lx + 56, ly + 6, C_LINE, lx + 66, ly + 10))

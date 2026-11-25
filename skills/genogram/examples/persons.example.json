@@ -1,6 +1,6 @@
 {
  "persons": [
-  {"id": "ichiro", "name": "一郎", "relation": "本人", "sex": "male", "age": 45, "cohabiting": true, "alive": true,
+  {"id": "ichiro", "name": "一郎", "relation": "本人", "center": true, "sex": "male", "age": 45, "cohabiting": true, "alive": true,
    "parents": ["shigeru", "kazuko"],
    "partners": [{"person": "yoko", "status": "divorced", "divorced": "2019-03"}, {"person": "mika", "status": "de_facto"}]},
   {"id": "shigeru", "name": "茂", "relation": "父", "sex": "male", "cohabiting": false, "alive": false,
