@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """人ごとの記録（persons.json）を検査して、ジェノグラムの SVG を書き出す。
 
-使い方: draw.py persons.json [-o genogram.svg]
+使い方: draw.py persons.json [-o genogram.svg] [--font フォントの名前]
   検査で誤りがあれば、図を書かずに誤りを表示して終わる（終了コード 1）。
   誤りが無ければ SVG を書き、警告と図の下に添える注記を表示する（終了コード 0）。
 
@@ -23,7 +23,7 @@ KINSHIP_ATTRS = ("relation", "sex", "alive")          # 推し量ってはいけ
 SEXES = ("male", "female", "not_recorded", "unknown")
 STATUSES = ("married", "divorced", "de_facto", "de_facto_ended", "non_marital")
 DATE_KEYS = {"divorced": "divorced", "ended": "de_facto_ended"}   # 年月の欄 → その欄を持てる状態
-DATE_RE = re.compile(r"^\d{4}-\d{2}$")
+DATE_RE = re.compile(r"^\d{4}(-\d{2})?$")              # 年月（YYYY-MM）か、年だけ（YYYY）
 
 
 def normalize(data):
@@ -70,9 +70,14 @@ def check(data):
     def val(p, k):
         return (p.get(k) or {}).get("value") if isinstance(p.get(k), dict) else None
 
+    centers = [pid for pid in ids if pmap[pid].get("center") is True]
+    if len(centers) > 1:
+        errors.append(["multiple_center", "中心の人（center）が 2 人以上いる：%s。中心の人は 1 人だけ" % "・".join(centers)])
     parents = {}
     for pid in ids:
         p = pmap[pid]
+        if p.get("center") not in (True, False, None):
+            errors.append(["bad_flag", "%s：center は true／false（中心の人だけ true）" % pid])
         for k in KINSHIP_ATTRS:
             if isinstance(p.get(k), dict) and p[k].get("inferred"):
                 errors.append(["kinship_inferred", "%s：%s に推し量った理由（inferred）が付いている。続柄・性別・生死は、述べられたことだけを書く" % (pid, k)])
@@ -114,7 +119,7 @@ def check(data):
                 if x.get(dk) is None:
                     continue
                 if not (isinstance(x[dk], str) and DATE_RE.match(x[dk])):
-                    errors.append(["bad_date", "%s と %s：%s は YYYY-MM の形" % (pid, o, dk)])
+                    errors.append(["bad_date", "%s と %s：%s は YYYY-MM か YYYY の形（西暦）" % (pid, o, dk)])
                 elif st != need:
                     errors.append(["partner_date_mismatch", "%s と %s：%s の年月は status が %s のときだけ書ける" % (pid, o, dk, need)])
             back = [y.get("status") for y in pmap[o].get("partners") or [] if isinstance(y, dict) and y.get("person") == pid]
@@ -134,6 +139,10 @@ def check(data):
             errors.append(["parent_cycle", "%s：親子の線が輪になっている" % pid])
             break
     if not errors:
+        for pid in ids:
+            n = len(set(x["person"] for x in pmap[pid].get("partners") or []))
+            if n >= 3:
+                warnings.append(["many_partners", "%s：相手が %d 人いる。きれいに描けるのは 2 人まで。3 人目からは、線がほかの人の記号に重なる" % (pid, n)])
         done = set()
         for pid in ids:
             for x in pmap[pid].get("partners") or []:
@@ -152,6 +161,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="persons.json を検査して、ジェノグラムの SVG を書き出す")
     ap.add_argument("persons")
     ap.add_argument("-o", "--output", default="genogram.svg")
+    ap.add_argument("--font", help="図の文字のフォント（その環境にある日本語のフォントの名前。PNG に変換するときに使う）")
     args = ap.parse_args(argv)
     with io.open(args.persons, encoding="utf-8") as f:
         data = normalize(json.load(f))
@@ -162,7 +172,10 @@ def main(argv=None):
         print("誤りが %d 件あるので、図は書いていない。" % len(report["errors"]))
         return 1
     with io.open(args.output, "w", encoding="utf-8") as f:
-        f.write(genogram_core.genogram_svg(data))
+        svg = genogram_core.genogram_svg(data, spread_past=True)
+        if args.font:
+            svg = svg.replace('font-family="Hiragino Sans, sans-serif"', 'font-family="%s, sans-serif"' % args.font.replace('"', ""), 1)
+        f.write(svg)
     print("図を書いた：%s" % args.output)
     for kind, text in report["warnings"]:
         print("警告 [%s] %s" % (kind, text))
