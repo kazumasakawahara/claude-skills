@@ -5,7 +5,7 @@
     "url": "https://github.com/kazumasakawahara"
   },
   "metadata": {
-    "description": "Agent Skills for deciding, investigating, and inspecting AI work: deliberation-sim, hypothesis-arena, acceptance-inspector.",
+    "description": "Agent Skills for deciding, investigating, inspecting AI work, and drawing family diagrams: deliberation-sim, hypothesis-arena, acceptance-inspector, genogram.",
     "version": "0.1.0"
   },
   "plugins": [
@@ -39,6 +39,17 @@
       "license": "MIT",
       "category": "productivity",
       "keywords": ["acceptance", "inspection", "verification", "japanese"],
+      "strict": false,
+      "skills": ["./"]
+    },
+    {
+      "name": "genogram",
+      "source": "./skills/genogram",
+      "description": "ある人物を中心にした家族関係の図（ジェノグラム）を、決まった記号で SVG に描く。図はスクリプトが描き、述べられていない親族関係は線にせず「記載なし」と注記する",
+      "version": "0.1.0",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": ["genogram", "family", "diagram", "japanese"],
       "strict": false,
       "skills": ["./"]
     }

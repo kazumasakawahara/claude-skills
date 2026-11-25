@@ -10,7 +10,7 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 tag="${1:-HEAD}"
-skills=(deliberation-sim hypothesis-arena acceptance-inspector)
+skills=(deliberation-sim hypothesis-arena acceptance-inspector genogram)
 
 mkdir -p dist
 status=0
