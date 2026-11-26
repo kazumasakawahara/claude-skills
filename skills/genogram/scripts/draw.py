@@ -10,6 +10,7 @@
 モデルは使わない。標準ライブラリだけで動く。検査は check(persons)、値の形をそろえるのは normalize(persons)。
 """
 import argparse
+import copy
 import io
 import json
 import os
@@ -208,6 +209,17 @@ def check(data):
     return {"errors": errors, "warnings": warnings}
 
 
+def for_drawing(data):
+    """図に渡す写し。名前と続柄が同じ人（名前を続柄にした人）は、続柄の段を出さない（同じ言葉が 2 段に並ぶため）。記録と注記は変えない"""
+    shown = copy.deepcopy(data)
+    for p in shown["persons"]:
+        rel = p.get("relation")
+        rel = rel.get("value") if isinstance(rel, dict) else rel
+        if rel and p.get("name") == rel:
+            del p["relation"]
+    return shown
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="persons.json を検査して、ジェノグラムの SVG を書き出す")
     ap.add_argument("persons")
@@ -234,7 +246,7 @@ def main(argv=None):
         print("誤りが %d 件あるので、図は書いていない。" % len(report["errors"]))
         return 1
     with io.open(args.output, "w", encoding="utf-8") as f:
-        svg = genogram_core.genogram_svg(data, spread_past=True, dead_style=args.dead, tidy=True)
+        svg = genogram_core.genogram_svg(for_drawing(data), spread_past=True, dead_style=args.dead, tidy=True)
         if args.font:
             svg = svg.replace('font-family="Hiragino Sans, sans-serif"', 'font-family="%s, sans-serif"' % args.font.replace('"', ""), 1)
         f.write(svg)
