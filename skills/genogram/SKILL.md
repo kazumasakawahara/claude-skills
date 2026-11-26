@@ -111,7 +111,7 @@ python3 scripts/draw.py persons.json -o genogram.svg
 ```
 
 - 誤りが出たら、図は書かれない。表示された誤りを persons.json で直して、もう一度実行する。誤りを消すために、分かっていない値を足さない。
-- 警告 `both_sides_parents`・`many_partners`・`partners_children` が出たら、「描ける範囲」のとおり伝える。
+- 警告 `both_sides_parents`・`many_partners`・`partners_children` が出たら、「描ける範囲」のとおり伝え、図を分けることを提案する（下の「1 枚に収まらないとき」）。
 - 亡くなった人の記号は、黒く塗って描く（既定）。「死亡は×で」と頼まれたときは、`--dead cross` を付けて描く。
 - 標準ライブラリだけで動く（Python 3.9 以上）。追加の導入は要らない。
 
@@ -130,6 +130,29 @@ rsvg-convert -z 1.4 genogram.svg -o genogram.png
 ```
 
 日本語のフォントが 1 つも無ければ、SVG のまま渡してその旨を伝える。
+
+## 1 枚に収まらないとき（図を分ける）
+
+家族が込み入っていると、1 枚では線が重なって読めなくなる。次のときは、無理に 1 枚にせず、図を分けることを提案する。
+
+- 検査が `many_partners`・`partners_children`・`both_sides_parents` の警告を出したとき
+- 図を画像で見て、線が記号や字に重なっている、どの相手との子かが読み取れない、と分かったとき
+
+分け方は、中心の人をどちらの図にも入れて、たとえば次の 2 枚にする。
+
+1. 中心の人と、その両親・きょうだい（きょうだいの配偶者と子を含む）
+2. 中心の人と、その相手（結婚・離婚・事実婚の相手）・子・孫
+
+記録（persons.json）は 1 つのままにして、描く人だけを `--only` で選ぶ。記録を 2 つに書き分けない。
+
+```
+python3 scripts/draw.py persons.json -o genogram-1.svg --only ichiro,shigeru,kazuko,sachi
+python3 scripts/draw.py persons.json -o genogram-2.svg --only ichiro,yoko,mika,aoi,sora
+```
+
+- 描かない人への線は、その図では省かれる。スクリプトが「この図に描いていない人」を表示するので、図ごとに、そのまま添える。
+- 子は、両方の親と同じ図に入れる。片方の親だけを描くと、もう一方の親が伝えられていないように見える。
+- 分けても重なりが残るときは、描く範囲をさらに絞るか、そのことを伝える。図の見た目を手で直さない。
 
 ## 直しの依頼を受けたとき
 
