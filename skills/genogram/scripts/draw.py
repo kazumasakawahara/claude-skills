@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """人ごとの記録（persons.json）を検査して、ジェノグラムの SVG を書き出す。
 
-使い方: draw.py persons.json [-o genogram.svg] [--font フォントの名前]
+使い方: draw.py persons.json [-o genogram.svg] [--dead fill|cross] [--font フォントの名前]
   検査で誤りがあれば、図を書かずに誤りを表示して終わる（終了コード 1）。
   誤りが無ければ SVG を書き、警告と図の下に添える注記を表示する（終了コード 0）。
 
@@ -161,6 +161,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="persons.json を検査して、ジェノグラムの SVG を書き出す")
     ap.add_argument("persons")
     ap.add_argument("-o", "--output", default="genogram.svg")
+    ap.add_argument("--dead", choices=("fill", "cross"), default="fill", help="死亡の表し方。fill＝記号を黒く塗る（既定）、cross＝記号に×")
     ap.add_argument("--font", help="図の文字のフォント（その環境にある日本語のフォントの名前。PNG に変換するときに使う）")
     args = ap.parse_args(argv)
     with io.open(args.persons, encoding="utf-8") as f:
@@ -172,7 +173,7 @@ def main(argv=None):
         print("誤りが %d 件あるので、図は書いていない。" % len(report["errors"]))
         return 1
     with io.open(args.output, "w", encoding="utf-8") as f:
-        svg = genogram_core.genogram_svg(data, spread_past=True)
+        svg = genogram_core.genogram_svg(data, spread_past=True, dead_style=args.dead)
         if args.font:
             svg = svg.replace('font-family="Hiragino Sans, sans-serif"', 'font-family="%s, sans-serif"' % args.font.replace('"', ""), 1)
         f.write(svg)
