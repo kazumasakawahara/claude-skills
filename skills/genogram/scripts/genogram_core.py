@@ -2,7 +2,7 @@
 """ジェノグラム（家族関係の図）を描く。
 
 モデルは使わない。標準ライブラリだけで動き、同じ入力からは同じ図が出る。入力は人ごとの記録（形は SKILL.md）。
-- genogram_svg(persons, spread_past=False)：SVG の文字列を返す。男性□・女性○・性別の記載なし◇、死亡は×、同居の範囲は破線の囲み、年齢は記号の中。
+- genogram_svg(persons, spread_past=False, dead_style="cross")：SVG の文字列を返す。男性□・女性○・性別の記載なし◇、死亡は×（dead_style="fill" なら黒塗り）、同居の範囲は破線の囲み、年齢は記号の中。
   資料に書かれていない人（placeholder）は破線の記号と「情報なし」。凡例つき。記号は資料に記載された性別を表す
   中心の人（"center": true）は二重の枠。印の無い記録では、図は前と変わらない
   2 人の関係の線：婚姻＝二重線、離婚＝二重線に // と年月（年だけでもよい）、事実婚・内縁＝破線、その解消＝破線に // と年月、婚姻外の親どうし＝点線と「婚姻外」
@@ -194,7 +194,8 @@ def _label(p):
     return name
 
 
-def genogram_svg(persons, spread_past=False):
+def genogram_svg(persons, spread_past=False, dead_style="cross"):
+    """dead_style：死亡の表し方。"cross"（既定。記号に×）か "fill"（記号を黒く塗る。×は描かない）。"""
     placed, pmap, parents, partners, children = layout(persons, spread_past)
     xs = [v[0] for v in placed.values()] or [0]
     gens = max([v[1] for v in placed.values()] or [0]) + 1
@@ -307,28 +308,31 @@ def genogram_svg(persons, spread_past=False):
         cls = sex + (" placeholder" if p.get("placeholder") else "")
         dash = ' stroke-dasharray="4,3"' if p.get("placeholder") else ""
         h = SYM / 2.0
+        filled = dead_style == "fill" and _val(p, "alive") is False     # 死亡を黒塗りで表す図の、亡くなった人
+        body = C_LINE if filled else "#ffffff"
         if sex == "male":
-            out.append('<rect class="%s" x="%s" y="%s" width="%d" height="%d" fill="#ffffff" stroke="%s" stroke-width="1.6"%s/>' % (cls, _n(cx - h), _n(cy - h), SYM, SYM, C_LINE, dash))
+            out.append('<rect class="%s" x="%s" y="%s" width="%d" height="%d" fill="%s" stroke="%s" stroke-width="1.6"%s/>' % (cls, _n(cx - h), _n(cy - h), SYM, SYM, body, C_LINE, dash))
         elif sex == "female":
-            out.append('<circle class="%s" cx="%s" cy="%s" r="%s" fill="#ffffff" stroke="%s" stroke-width="1.6"%s/>' % (cls, _n(cx), _n(cy), _n(h), C_LINE, dash))
+            out.append('<circle class="%s" cx="%s" cy="%s" r="%s" fill="%s" stroke="%s" stroke-width="1.6"%s/>' % (cls, _n(cx), _n(cy), _n(h), body, C_LINE, dash))
         else:
-            out.append('<path class="%s" d="M %s %s L %s %s L %s %s L %s %s z" fill="#ffffff" stroke="%s" stroke-width="1.6"%s/>' % (
-                cls, _n(cx), _n(cy - h), _n(cx + h), _n(cy), _n(cx), _n(cy + h), _n(cx - h), _n(cy), C_LINE, dash))
+            out.append('<path class="%s" d="M %s %s L %s %s L %s %s L %s %s z" fill="%s" stroke="%s" stroke-width="1.6"%s/>' % (
+                cls, _n(cx), _n(cy - h), _n(cx + h), _n(cy), _n(cx), _n(cy + h), _n(cx - h), _n(cy), body, C_LINE, dash))
         if p.get("center") is True:                                   # 中心の人：記号の内側にもう 1 本の枠（二重の枠）
             g = h - 4
+            inner = "#ffffff" if filled else C_LINE
             if sex == "male":
-                out.append('<rect class="center" x="%s" y="%s" width="%s" height="%s" fill="none" stroke="%s" stroke-width="1"/>' % (_n(cx - g), _n(cy - g), _n(2 * g), _n(2 * g), C_LINE))
+                out.append('<rect class="center" x="%s" y="%s" width="%s" height="%s" fill="none" stroke="%s" stroke-width="1"/>' % (_n(cx - g), _n(cy - g), _n(2 * g), _n(2 * g), inner))
             elif sex == "female":
-                out.append('<circle class="center" cx="%s" cy="%s" r="%s" fill="none" stroke="%s" stroke-width="1"/>' % (_n(cx), _n(cy), _n(g), C_LINE))
+                out.append('<circle class="center" cx="%s" cy="%s" r="%s" fill="none" stroke="%s" stroke-width="1"/>' % (_n(cx), _n(cy), _n(g), inner))
             else:
                 out.append('<path class="center" d="M %s %s L %s %s L %s %s L %s %s z" fill="none" stroke="%s" stroke-width="1"/>' % (
-                    _n(cx), _n(cy - g), _n(cx + g), _n(cy), _n(cx), _n(cy + g), _n(cx - g), _n(cy), C_LINE))
-        if _val(p, "alive") is False:
+                    _n(cx), _n(cy - g), _n(cx + g), _n(cy), _n(cx), _n(cy + g), _n(cx - g), _n(cy), inner))
+        if _val(p, "alive") is False and not filled:
             out.append('<g class="dead"><line x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.4"/><line x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.4"/></g>' % (
                 _n(cx - h), _n(cy - h), _n(cx + h), _n(cy + h), C_LINE, _n(cx - h), _n(cy + h), _n(cx + h), _n(cy - h), C_LINE))
         age = _val(p, "age")
         if isinstance(age, int) and not isinstance(age, bool):
-            out.append('<text x="%s" y="%s" font-size="13" font-weight="bold" text-anchor="middle">%d</text>' % (_n(cx), _n(cy + 5), age))
+            out.append('<text x="%s" y="%s" font-size="13" font-weight="bold" text-anchor="middle"%s>%d</text>' % (_n(cx), _n(cy + 5), ' fill="#ffffff"' if filled else "", age))
         elif p.get("placeholder") and _val(p, "alive") is not False:
             out.append('<text x="%s" y="%s" font-size="13" text-anchor="middle" fill="%s">?</text>' % (_n(cx), _n(cy + 5), C_SUB))
         # ひとりの親（自分の記号の下から子へ線が下りる人）は、字を線の右に置く（線が字の上を通らない）
@@ -351,9 +355,10 @@ def genogram_svg(persons, spread_past=False):
     out.append('<circle cx="%d" cy="%d" r="6" fill="#ffffff" stroke="%s"/><text x="%d" y="%d" font-size="10">女性</text>' % (lx + 56, ly + 6, C_LINE, lx + 66, ly + 10))
     out.append('<path d="M %d %d L %d %d L %d %d L %d %d z" fill="#ffffff" stroke="%s"/><text x="%d" y="%d" font-size="10">性別の記載なし</text>' % (
         lx + 108, ly, lx + 114, ly + 6, lx + 108, ly + 12, lx + 102, ly + 6, C_LINE, lx + 118, ly + 10))
-    out.append('<text x="%d" y="%d" font-size="10">×＝死亡　記号の中の数字＝年齢　破線の記号＝資料に記載なし（情報なし）</text>' % (lx + 200, ly + 10))
+    dead_word, dx = ("黒塗り＝死亡", 20) if dead_style == "fill" else ("×＝死亡", 0)     # 黒塗りの凡例は 2 字長いので、右の項目を寄せる
+    out.append('<text x="%d" y="%d" font-size="10">%s　記号の中の数字＝年齢　破線の記号＝資料に記載なし（情報なし）</text>' % (lx + 200, ly + 10, dead_word))
     out.append('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-dasharray="5,4"/><text x="%d" y="%d" font-size="10">同居の範囲</text>' % (
-        lx + 560, ly + 6, lx + 590, ly + 6, C_COHABIT, lx + 596, ly + 10))
+        lx + 560 + dx, ly + 6, lx + 590 + dx, ly + 6, C_COHABIT, lx + 596 + dx, ly + 10))
     for row in line_rows:
         ly += 18
         x = lx
