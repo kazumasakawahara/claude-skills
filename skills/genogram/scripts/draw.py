@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """人ごとの記録（persons.json）を検査して、ジェノグラムの SVG を書き出す。
 
-使い方: draw.py persons.json [-o genogram.svg] [--dead fill|cross] [--font フォントの名前]
+使い方: draw.py persons.json [-o genogram.svg] [--only id,id,...] [--dead fill|cross] [--font フォントの名前]
+  --only：図を分けるとき。並べた id の人だけを描く（記録は書き換えない。描かない人への線は、その図では省く）。
   検査で誤りがあれば、図を書かずに誤りを表示して終わる（終了コード 1）。
   誤りが無ければ SVG を書き、警告と図の下に添える注記を表示する（終了コード 0）。
 
@@ -21,7 +22,7 @@ import genogram_core  # noqa: E402
 ATTRS = ("relation", "sex", "age", "cohabiting", "alive", "health", "services", "role", "agencies")
 KINSHIP_ATTRS = ("relation", "sex", "alive")          # 推し量ってはいけない欄
 SEXES = ("male", "female", "not_recorded", "unknown")
-STATUSES = ("married", "divorced", "de_facto", "de_facto_ended", "non_marital")
+STATUSES = ("married", "divorced", "de_facto", "de_facto_ended", "non_marital", "couple")
 DATE_KEYS = {"divorced": "divorced", "ended": "de_facto_ended"}   # 年月の欄 → その欄を持てる状態
 DATE_RE = re.compile(r"^\d{4}(-\d{2})?$")              # 年月（YYYY-MM）か、年だけ（YYYY）
 
@@ -43,6 +44,25 @@ def normalize(data):
             if isinstance(p.get(k), list):
                 p[k] = [{"person": x} if isinstance(x, str) else x for x in p[k]]
     return data
+
+
+def subset(data, keep):
+    """keep に並べた id の人だけの記録を作る（図を分けるとき）。描かない人を指す parents・partners は、その図では省く。
+    返り値：(記録, 描かない人の名前の並び, 記録にない id の並び)。元の記録は書き換えない。"""
+    persons = [p for p in data.get("persons") or [] if isinstance(p, dict)]
+    known = [p.get("id") for p in persons]
+    missing = [k for k in keep if k not in known]
+    out, left = [], []
+    for p in persons:
+        if p.get("id") not in keep:
+            left.append(p.get("name", p.get("id")))
+            continue
+        q = dict(p)
+        for k in ("parents", "partners"):
+            if isinstance(q.get(k), list):
+                q[k] = [x for x in q[k] if not (isinstance(x, dict) and x.get("person") in known and x.get("person") not in keep)]
+        out.append(q)
+    return {"persons": out}, left, missing
 
 
 def _is_int(v):
@@ -141,8 +161,14 @@ def check(data):
     if not errors:
         for pid in ids:
             n = len(set(x["person"] for x in pmap[pid].get("partners") or []))
-            if n >= 3:
-                warnings.append(["many_partners", "%s：相手が %d 人いる。きれいに描けるのは 2 人まで。3 人目からは、線がほかの人の記号に重なる" % (pid, n)])
+            if n >= 4:
+                warnings.append(["many_partners", "%s：相手が %d 人いる。きれいに描けるのは 3 人まで。4 人目からは、線どうしが重なる" % (pid, n)])
+        placed = genogram_core.layout(data, True, True)[0]             # 描くときと同じ配置で、ほかの人をまたぐ線を探す
+        for pid in ids:
+            others = set(x["person"] for x in pmap[pid].get("partners") or [])
+            far = [o for o in others if any(placed[q][1] == placed[pid][1] and min(placed[pid][0], placed[o][0]) < placed[q][0] < max(placed[pid][0], placed[o][0]) for q in placed)]
+            if far and len(others) >= 3 and any(pid in parents[c] for c in ids):
+                warnings.append(["partners_children", "%s：相手が 3 人いて、子もいる。子へ下りる線が、記号の下に回した線をまたぐ。どの相手との子かが読み取れるかを、図を画像で確かめる" % pid])
         done = set()
         for pid in ids:
             for x in pmap[pid].get("partners") or []:
@@ -161,11 +187,20 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="persons.json を検査して、ジェノグラムの SVG を書き出す")
     ap.add_argument("persons")
     ap.add_argument("-o", "--output", default="genogram.svg")
+    ap.add_argument("--only", help="図を分けるとき。描く人の id をコンマで並べる（記録は書き換えない）")
     ap.add_argument("--dead", choices=("fill", "cross"), default="fill", help="死亡の表し方。fill＝記号を黒く塗る（既定）、cross＝記号に×")
     ap.add_argument("--font", help="図の文字のフォント（その環境にある日本語のフォントの名前。PNG に変換するときに使う）")
     args = ap.parse_args(argv)
     with io.open(args.persons, encoding="utf-8") as f:
         data = normalize(json.load(f))
+    left, whole = [], None
+    if args.only and isinstance(data, dict):
+        whole = data
+        keep = [k.strip() for k in args.only.split(",") if k.strip()]
+        data, left, missing = subset(data, keep)
+        if missing:
+            print("誤り [unknown_person] --only に、記録にない id がある：%s" % "・".join(missing))
+            return 1
     report = check(data)
     for kind, text in report["errors"]:
         print("誤り [%s] %s" % (kind, text))
@@ -173,14 +208,19 @@ def main(argv=None):
         print("誤りが %d 件あるので、図は書いていない。" % len(report["errors"]))
         return 1
     with io.open(args.output, "w", encoding="utf-8") as f:
-        svg = genogram_core.genogram_svg(data, spread_past=True, dead_style=args.dead)
+        svg = genogram_core.genogram_svg(data, spread_past=True, dead_style=args.dead, tidy=True)
         if args.font:
             svg = svg.replace('font-family="Hiragino Sans, sans-serif"', 'font-family="%s, sans-serif"' % args.font.replace('"', ""), 1)
         f.write(svg)
     print("図を書いた：%s" % args.output)
     for kind, text in report["warnings"]:
         print("警告 [%s] %s" % (kind, text))
+    if left:
+        print("この図に描いていない人（記録にはある）：%s" % "・".join(left))
     notes = genogram_core.inference_notes(data)
+    if whole is not None:                                             # 分けた図：描かない人がいるために出た注記（記録の全体では出ないもの）は添えない
+        all_notes = genogram_core.inference_notes(whole)
+        notes = [n for n in notes if n in all_notes]
     if notes:
         print("図の下に添える注記：")
         for n in notes:

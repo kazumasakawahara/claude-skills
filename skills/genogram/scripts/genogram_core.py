@@ -23,7 +23,8 @@ GAP = 2.5                                                    # 二重線の半�
 DOUBLE = ("married", "divorced")
 LINE_DASH = {"de_facto": "6,4", "de_facto_ended": "6,4", "non_marital": "1.5,3"}
 LINE_LEGEND = (("married", "二重線＝婚姻"), ("divorced", "二重線に //＝離婚"), ("de_facto", "破線＝事実婚・内縁"),
-               ("de_facto_ended", "破線に //＝事実婚の解消"), ("non_marital", "点線＝婚姻外の親どうし"))
+               ("de_facto_ended", "破線に //＝事実婚の解消"), ("non_marital", "点線＝婚姻外の親どうし"),
+               ("couple", "一本線＝夫婦・両親（婚姻の記載なし）"))
 PAST = ("divorced", "de_facto_ended", "non_marital")
 
 
@@ -55,6 +56,17 @@ def _recs(persons):
             seen.add(p["id"])
             out.append(p)
     return out
+
+
+def _foot(p, cy, dx):
+    """記号の下の辺の高さ（中心から横に dx 離れた所）。"""
+    h = SYM / 2.0
+    sex = _val(p, "sex")
+    if sex == "male":
+        return cy + h
+    if sex == "female":
+        return cy + (h * h - dx * dx) ** 0.5
+    return cy + h - abs(dx)
 
 
 def kinship_gaps(persons):
@@ -107,16 +119,25 @@ def _age_key(pmap, ids):
     return key
 
 
-def layout(persons, spread_past=False):
+def layout(persons, spread_past=False, tidy=False):
     """{id: (x_slot, generation)} と構造。x は slot 単位（中心）。
-    spread_past を真にすると、続いている相手がいない人の、終わった関係の相手を左右に分けて置く（既定は偽。偽のときの配置は前と変わらない）。"""
+    spread_past を真にすると、続いている相手がいない人の、終わった関係の相手を左右に分けて置く（既定は偽。偽のときの配置は前と変わらない）。
+    tidy を真にすると、関係の記載のない 2 人の親を、置くときだけ 1 組として隣に並べる（既定は偽）。"""
     recs = _recs(persons)
     ids, pmap, parents, partners, children = _structure(recs)
+    pp = partners                                                     # 置くときに 1 組として扱う相手
+    if tidy:
+        pp = dict((k, list(v)) for k, v in partners.items())
+        for c in ids:
+            ps = [q for i, q in enumerate(parents[c]) if q not in parents[c][:i]]
+            if len(ps) == 2 and ps[1] not in pp[ps[0]]:           # 関係の記載のない 2 人の親（線は引かない）
+                pp[ps[0]].append(ps[1])
+                pp[ps[1]].append(ps[0])
     key = _age_key(pmap, ids)
     placed = {}
 
     def free(p, taken):
-        return [s for s in partners[p] if not parents[s] and s not in placed and s != p and s not in taken]
+        return [s for s in pp[p] if not parents[s] and s not in placed and s != p and s not in taken]
 
     def unit(head):
         spouses = free(head, ())
@@ -141,6 +162,11 @@ def layout(persons, spread_past=False):
                 taken += more
                 members = members + [s] + more
         kids = sorted(set(c for m in members for c in children[m]), key=key)
+        if tidy:                                                      # 子を、親の組ごとにまとめて、親の並びの順に置く（組の中は年齢の高い順）
+            def by_parents(c):
+                at = [members.index(q) for q in parents[c] if q in members]
+                return (sum(at) / float(len(at)),) + key(c)
+            kids = sorted(kids, key=by_parents)
         return members, kids
 
     def width(head, seen):
@@ -165,10 +191,10 @@ def layout(persons, spread_past=False):
     for pid in ids:
         if pid in placed or parents[pid]:
             continue
-        if any(not parents[s] and s in placed for s in partners[pid]):
+        if any(not parents[s] and s in placed for s in pp[pid]):
             continue
         # 根：子のある人を頭に（配偶者だけの根は相手の単位で置かれる）
-        if not children[pid] and any(children[s] for s in partners[pid]):
+        if not children[pid] and any(children[s] for s in pp[pid]):
             continue
         w = width(pid, set())                                         # 置く前に測る（置いた後は相手が置き済みで狭く測れる）
         place(pid, x, 0)
@@ -194,9 +220,10 @@ def _label(p):
     return name
 
 
-def genogram_svg(persons, spread_past=False, dead_style="cross"):
-    """dead_style：死亡の表し方。"cross"（既定。記号に×）か "fill"（記号を黒く塗る。×は描かない）。"""
-    placed, pmap, parents, partners, children = layout(persons, spread_past)
+def genogram_svg(persons, spread_past=False, dead_style="cross", tidy=False):
+    """dead_style：死亡の表し方。"cross"（既定。記号に×）か "fill"（記号を黒く塗る。×は描かない）。
+    tidy：真のとき、ほかの人の記号をまたぐ 2 人の線を記号の下に回し、関係の記載のない 2 人の親を並べて、2 人から子へ線を下ろす（既定は偽。偽のときの図は前と変わらない）。"""
+    placed, pmap, parents, partners, children = layout(persons, spread_past, tidy)
     xs = [v[0] for v in placed.values()] or [0]
     gens = max([v[1] for v in placed.values()] or [0]) + 1
     minx = min(xs)
@@ -252,6 +279,9 @@ def genogram_svg(persons, spread_past=False, dead_style="cross"):
         out.append('<text x="%s" y="%s" font-size="10" fill="%s">同居</text>' % (_n(l + 4), _n(b - 4), C_COHABIT))
     # 2 人の関係の線
     pair_status = {}
+    far_y = {}                                                         # ほかの人の記号をまたぐ線（記号の下に回す）の高さ
+    far_ends = set()
+    label_above = set()                                                # 名前を記号の上に書く人（記号の下から線が出る、外から入った相手）
     done = set()
     for pid in placed:
         for o in partners[pid]:
@@ -265,24 +295,44 @@ def genogram_svg(persons, spread_past=False, dead_style="cross"):
             links = [x for x in pmap[a].get("partners") or [] if x.get("person") == b] + [x for x in pmap[b].get("partners") or [] if x.get("person") == a]
             st = _status(pmap, a, b)
             pair_status[pair] = st
-            line = '<line x1="%s" y1="%%s" x2="%s" y2="%%s" stroke="%s" stroke-width="%s"%s/>'
-            if st in DOUBLE:
-                body = [line % (_n(x1), _n(x2), C_LINE, "1.2", "") % (_n(y - GAP), _n(y - GAP)), line % (_n(x1), _n(x2), C_LINE, "1.2", "") % (_n(y + GAP), _n(y + GAP))]
-            elif st in LINE_DASH:
-                body = [line % (_n(x1), _n(x2), C_LINE, "1.4", ' stroke-dasharray="%s"' % LINE_DASH[st]) % (_n(y), _n(y))]
+            far = tidy and Y(a) == Y(b) and any(Y(q) == y and X(a) < X(q) < X(b) for q in placed)
+            if far:                                                    # 間にほかの人がいる：線を記号の下（名前の字の下）に回す
+                by = y + SYM / 2.0 + 40
+                far_y[pair] = by
+                outer = a if len(partners[a]) <= len(partners[b]) else b   # 相手の少ない側（外から入った相手）は、名前を記号の上に書く
+                label_above.add(outer)
+                far_ends.add(b if outer == a else a)                       # もう一方は、字を線の右に置く
+
+                def u(k, w, dash):
+                    return '<path d="M %s %s L %s %s L %s %s L %s %s" fill="none" stroke="%s" stroke-width="%s"%s/>' % (
+                        _n(X(a) + k), _n(_foot(pmap[a], Y(a), k)), _n(X(a) + k), _n(by - k), _n(X(b) - k), _n(by - k), _n(X(b) - k), _n(_foot(pmap[b], Y(b), k)), C_LINE, w, dash)
+                if st in DOUBLE:
+                    body = [u(GAP, "1.2", ""), u(-GAP, "1.2", "")]
+                elif st in LINE_DASH:
+                    body = [u(0, "1.4", ' stroke-dasharray="%s"' % LINE_DASH[st])]
+                else:
+                    body = [u(0, "1", "")]
+                yl, ylab, ynm = by, by + 18, by + 14
             else:
-                body = [line % (_n(x1), _n(x2), C_LINE, "1", "") % (_n(y), _n(y))]
+                line = '<line x1="%s" y1="%%s" x2="%s" y2="%%s" stroke="%s" stroke-width="%s"%s/>'
+                if st in DOUBLE:
+                    body = [line % (_n(x1), _n(x2), C_LINE, "1.2", "") % (_n(y - GAP), _n(y - GAP)), line % (_n(x1), _n(x2), C_LINE, "1.2", "") % (_n(y + GAP), _n(y + GAP))]
+                elif st in LINE_DASH:
+                    body = [line % (_n(x1), _n(x2), C_LINE, "1.4", ' stroke-dasharray="%s"' % LINE_DASH[st]) % (_n(y), _n(y))]
+                else:
+                    body = [line % (_n(x1), _n(x2), C_LINE, "1", "") % (_n(y), _n(y))]
+                yl, ylab, ynm = y, y - 12, y - 6
             out.append('<g class="partner %s">%s</g>' % (_esc(st or "none"), "".join(body)))
             mx = (x1 + x2) / 2.0
             if st in ("divorced", "de_facto_ended"):
                 key, word, cls = ("divorced", "離婚", "divorce") if st == "divorced" else ("ended", "解消", "ended")
                 out.append('<g class="%s"><line x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.4"/><line x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.4"/></g>' % (
-                    cls, _n(mx - 6), _n(y + 8), _n(mx - 1), _n(y - 8), C_LINE, _n(mx), _n(y + 8), _n(mx + 5), _n(y - 8), C_LINE))
+                    cls, _n(mx - 6), _n(yl + 8), _n(mx - 1), _n(yl - 8), C_LINE, _n(mx), _n(yl + 8), _n(mx + 5), _n(yl - 8), C_LINE))
                 when = next((x.get(key) for x in links if x.get(key)), None)
                 label = ("%s.%s %s" % (tuple(str(when).split("-")[:2]) + (word,))) if when and "-" in str(when) else ("%s %s" % (when, word) if when else word)
-                out.append('<text x="%s" y="%s" font-size="10" text-anchor="middle" fill="%s">%s</text>' % (_n(mx), _n(y - 12), C_SUB, _esc(label)))
+                out.append('<text x="%s" y="%s" font-size="10" text-anchor="middle" fill="%s">%s</text>' % (_n(mx), _n(ylab), C_SUB, _esc(label)))
             elif st == "non_marital":
-                out.append('<text x="%s" y="%s" font-size="10" text-anchor="middle" fill="%s">婚姻外</text>' % (_n(mx), _n(y - 6), C_SUB))
+                out.append('<text x="%s" y="%s" font-size="10" text-anchor="middle" fill="%s">婚姻外</text>' % (_n(mx), _n(ynm), C_SUB))
     # 親子
     groups = {}
     for pid in placed:
@@ -290,12 +340,29 @@ def genogram_svg(persons, spread_past=False, dead_style="cross"):
         if ps:
             groups.setdefault(ps, []).append(pid)
     lone_parents = set(ps[0] for ps in groups if len(ps) == 1)
+    joint = set(ps for ps in groups if tidy and len(ps) == 2 and ps not in pair_status and Y(ps[0]) == Y(ps[1]))   # 関係の記載のない 2 人の親
+    for ps in joint:
+        lone_parents.update(ps)
+    lone_parents |= far_ends                                           # 記号の下から線が出る人は、字を線の右に置く
     for ps, kids in sorted(groups.items()):
         ax = sum(X(p) for p in ps) / float(len(ps))
-        ay = (Y(ps[0]) + (GAP if pair_status.get(ps) in DOUBLE else 0)) if len(ps) > 1 else Y(ps[0]) + SYM / 2.0
+        if ps in joint:                                                # 2 人の記号の下から線を下ろして結び、そこから子へ（2 人の間に線は引かない）
+            ay = Y(ps[0]) + SYM / 2.0 + 40
+            for q in ps:
+                out.append('<line class="descent" x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.2"/>' % (_n(X(q)), _n(Y(q) + SYM / 2.0), _n(X(q)), _n(ay), C_LINE))
+            out.append('<line class="coparent" x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.2"/>' % (_n(X(ps[0])), _n(ay), _n(X(ps[1])), _n(ay), C_LINE))
+        elif ps in far_y:                                              # 下に回した線から下ろす：子の真上（線の両端の内側）から
+            ay = far_y[ps]
+            lo, hi = min(X(ps[0]), X(ps[1])) + 12, max(X(ps[0]), X(ps[1])) - 12
+            ax = min(max(sum(X(k) for k in kids) / float(len(kids)), lo), hi)
+        else:
+            ay = (Y(ps[0]) + (GAP if pair_status.get(ps) in DOUBLE else 0)) if len(ps) > 1 else Y(ps[0]) + SYM / 2.0
         top = min(Y(k) for k in kids) - SYM / 2.0
         bar = top - 18
         kx = sorted(X(k) for k in kids)
+        for fp, fy in sorted(far_y.items()):                               # 下に回した線を子への線がまたぐ所：回した線を切って、またいでいることを示す
+            if fp != ps and ay < fy < bar and min(X(fp[0]), X(fp[1])) < ax < max(X(fp[0]), X(fp[1])):
+                out.append('<line class="bridge" x1="%s" y1="%s" x2="%s" y2="%s" stroke="#ffffff" stroke-width="9"/>' % (_n(ax), _n(fy - 7), _n(ax), _n(fy + 7)))
         out.append('<line class="descent" x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.2"/>' % (_n(ax), _n(ay), _n(ax), _n(bar), C_LINE))
         out.append('<line class="sibling" x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.2"/>' % (_n(min(kx + [ax])), _n(bar), _n(max(kx + [ax])), _n(bar), C_LINE))
         for k in kids:
@@ -337,10 +404,11 @@ def genogram_svg(persons, spread_past=False, dead_style="cross"):
             out.append('<text x="%s" y="%s" font-size="13" text-anchor="middle" fill="%s">?</text>' % (_n(cx), _n(cy + 5), C_SUB))
         # ひとりの親（自分の記号の下から子へ線が下りる人）は、字を線の右に置く（線が字の上を通らない）
         tx, anchor = (cx + LABEL_PAD, "") if pid in lone_parents else (cx, ' text-anchor="middle"')
-        out.append('<text x="%s" y="%s" font-size="11" font-weight="bold"%s fill="%s">%s</text>' % (_n(tx), _n(cy + h + 15), anchor, C_TEXT, _esc(_label(p))))
+        ny, ry = (cy - h - 5, cy - h - 18) if pid in label_above else (cy + h + 15, cy + h + 29)
+        out.append('<text x="%s" y="%s" font-size="11" font-weight="bold"%s fill="%s">%s</text>' % (_n(tx), _n(ny), anchor, C_TEXT, _esc(_label(p))))
         rel = _val(p, "relation")
         if rel and not p.get("placeholder"):
-            out.append('<text x="%s" y="%s" font-size="10"%s fill="%s">%s</text>' % (_n(tx), _n(cy + h + 29), anchor, C_SUB, _esc(rel)))
+            out.append('<text x="%s" y="%s" font-size="10"%s fill="%s">%s</text>' % (_n(tx), _n(ry), anchor, C_SUB, _esc(rel)))
     # 凡例：1 行目は性別の記号の断り、2 行目は記号（いつも）、3 行目は図に出た線だけ
     lx = MARGIN
     ly = H - 18 * legend_rows - 4
@@ -367,8 +435,10 @@ def genogram_svg(persons, spread_past=False, dead_style="cross"):
             if st in DOUBLE:
                 out.append('<line x1="%d" y1="%s" x2="%d" y2="%s" stroke="%s"/><line x1="%d" y1="%s" x2="%d" y2="%s" stroke="%s"/>' % (
                     x, _n(yy - GAP), x + 28, _n(yy - GAP), C_LINE, x, _n(yy + GAP), x + 28, _n(yy + GAP), C_LINE))
-            else:
+            elif st in LINE_DASH:
                 out.append('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="1.4" stroke-dasharray="%s"/>' % (x, yy, x + 28, yy, C_LINE, LINE_DASH[st]))
+            else:
+                out.append('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s"/>' % (x, yy, x + 28, yy, C_LINE))
             out.append('<text x="%d" y="%d" font-size="10">%s</text>' % (x + 34, ly + 10, _esc(label)))
             x += 36 + 11 * len(label)
     out.append("</svg>\n")
