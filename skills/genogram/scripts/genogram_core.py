@@ -193,6 +193,8 @@ def layout(persons, spread_past=False, tidy=False):
             continue
         if any(not parents[s] and s in placed for s in pp[pid]):
             continue
+        if tidy and any(parents[s] for s in pp[pid]):                 # 相手に親の記録がある人（外から入った人）は、根にしない。相手の隣に置かれる（記録の順に左右されない）
+            continue
         # 根：子のある人を頭に（配偶者だけの根は相手の単位で置かれる）
         if not children[pid] and any(children[s] for s in pp[pid]):
             continue

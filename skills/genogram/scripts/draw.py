@@ -46,6 +46,31 @@ def normalize(data):
     return data
 
 
+def add_couples(data):
+    """同じ子の親である 2 人（父と母）に、2 人の関係が何も書かれていないとき、婚姻の線（married）で結ぶ。結んだ組（名前の組）の並びを返す。"""
+    persons = [p for p in data.get("persons") or [] if isinstance(p, dict) and isinstance(p.get("id"), str)]
+    pmap = dict((p["id"], p) for p in persons)
+    added = []
+    for c in persons:
+        ps = []
+        for x in c.get("parents") or []:
+            o = x.get("person") if isinstance(x, dict) else None
+            if o in pmap and o != c["id"] and o not in ps:
+                ps.append(o)
+        if len(ps) != 2:
+            continue
+        a, b = ps
+        linked = any(isinstance(y, dict) and y.get("person") == t for s, t in ((a, b), (b, a)) for y in pmap[s].get("partners") or [])
+        if linked:
+            continue
+        for s, t in ((a, b), (b, a)):
+            if not isinstance(pmap[s].get("partners"), list):
+                pmap[s]["partners"] = []
+            pmap[s]["partners"].append({"person": t, "status": "married"})
+        added.append((pmap[a].get("name", a), pmap[b].get("name", b)))
+    return added
+
+
 def subset(data, keep):
     """keep に並べた id の人だけの記録を作る（図を分けるとき）。描かない人を指す parents・partners は、その図では省く。
     返り値：(記録, 描かない人の名前の並び, 記録にない id の並び)。元の記録は書き換えない。"""
@@ -201,6 +226,7 @@ def main(argv=None):
         if missing:
             print("誤り [unknown_person] --only に、記録にない id がある：%s" % "・".join(missing))
             return 1
+    joined = add_couples(data) if isinstance(data, dict) and isinstance(data.get("persons"), list) else []
     report = check(data)
     for kind, text in report["errors"]:
         print("誤り [%s] %s" % (kind, text))
@@ -221,6 +247,13 @@ def main(argv=None):
     if whole is not None:                                             # 分けた図：描かない人がいるために出た注記（記録の全体では出ないもの）は添えない
         all_notes = genogram_core.inference_notes(whole)
         notes = [n for n in notes if n in all_notes]
+    names = dict((p.get("id"), p.get("name", p.get("id"))) for p in data["persons"])
+    for a, b in joined:
+        notes.append("%s と %s：婚姻は伝えられていない。両親として婚姻の線で結んだ（違えば直す）。" % (a, b))
+    for p in data["persons"]:
+        for x in p.get("parents") or []:
+            if isinstance(x, dict) and x.get("assumed"):
+                notes.append("%s：親を %s としたのは、続柄からの読み取り（伝えられてはいない。違えば直す）。" % (names.get(p.get("id")), names.get(x.get("person"))))
     if notes:
         print("図の下に添える注記：")
         for n in notes:
