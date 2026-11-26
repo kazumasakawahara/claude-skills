@@ -162,6 +162,11 @@ def layout(persons, spread_past=False, tidy=False):
                 taken += more
                 members = members + [s] + more
         kids = sorted(set(c for m in members for c in children[m]), key=key)
+        if tidy:                                                      # 子を、親の組ごとにまとめて、親の並びの順に置く（組の中は年齢の高い順）
+            def by_parents(c):
+                at = [members.index(q) for q in parents[c] if q in members]
+                return (sum(at) / float(len(at)),) + key(c)
+            kids = sorted(kids, key=by_parents)
         return members, kids
 
     def width(head, seen):
@@ -346,13 +351,18 @@ def genogram_svg(persons, spread_past=False, dead_style="cross", tidy=False):
             for q in ps:
                 out.append('<line class="descent" x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.2"/>' % (_n(X(q)), _n(Y(q) + SYM / 2.0), _n(X(q)), _n(ay), C_LINE))
             out.append('<line class="coparent" x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.2"/>' % (_n(X(ps[0])), _n(ay), _n(X(ps[1])), _n(ay), C_LINE))
-        elif ps in far_y:
+        elif ps in far_y:                                              # 下に回した線から下ろす：子の真上（線の両端の内側）から
             ay = far_y[ps]
+            lo, hi = min(X(ps[0]), X(ps[1])) + 12, max(X(ps[0]), X(ps[1])) - 12
+            ax = min(max(sum(X(k) for k in kids) / float(len(kids)), lo), hi)
         else:
             ay = (Y(ps[0]) + (GAP if pair_status.get(ps) in DOUBLE else 0)) if len(ps) > 1 else Y(ps[0]) + SYM / 2.0
         top = min(Y(k) for k in kids) - SYM / 2.0
         bar = top - 18
         kx = sorted(X(k) for k in kids)
+        for fp, fy in sorted(far_y.items()):                               # 下に回した線を子への線がまたぐ所：回した線を切って、またいでいることを示す
+            if fp != ps and ay < fy < bar and min(X(fp[0]), X(fp[1])) < ax < max(X(fp[0]), X(fp[1])):
+                out.append('<line class="bridge" x1="%s" y1="%s" x2="%s" y2="%s" stroke="#ffffff" stroke-width="9"/>' % (_n(ax), _n(fy - 7), _n(ax), _n(fy + 7)))
         out.append('<line class="descent" x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.2"/>' % (_n(ax), _n(ay), _n(ax), _n(bar), C_LINE))
         out.append('<line class="sibling" x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="1.2"/>' % (_n(min(kx + [ax])), _n(bar), _n(max(kx + [ax])), _n(bar), C_LINE))
         for k in kids:
@@ -394,7 +404,7 @@ def genogram_svg(persons, spread_past=False, dead_style="cross", tidy=False):
             out.append('<text x="%s" y="%s" font-size="13" text-anchor="middle" fill="%s">?</text>' % (_n(cx), _n(cy + 5), C_SUB))
         # ひとりの親（自分の記号の下から子へ線が下りる人）は、字を線の右に置く（線が字の上を通らない）
         tx, anchor = (cx + LABEL_PAD, "") if pid in lone_parents else (cx, ' text-anchor="middle"')
-        ny, ry = (cy - h - 8, cy - h - 22) if pid in label_above else (cy + h + 15, cy + h + 29)
+        ny, ry = (cy - h - 5, cy - h - 18) if pid in label_above else (cy + h + 15, cy + h + 29)
         out.append('<text x="%s" y="%s" font-size="11" font-weight="bold"%s fill="%s">%s</text>' % (_n(tx), _n(ny), anchor, C_TEXT, _esc(_label(p))))
         rel = _val(p, "relation")
         if rel and not p.get("placeholder"):

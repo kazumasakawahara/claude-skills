@@ -148,7 +148,7 @@ def check(data):
             others = set(x["person"] for x in pmap[pid].get("partners") or [])
             far = [o for o in others if any(placed[q][1] == placed[pid][1] and min(placed[pid][0], placed[o][0]) < placed[q][0] < max(placed[pid][0], placed[o][0]) for q in placed)]
             if far and len(others) >= 3 and any(pid in parents[c] for c in ids):
-                warnings.append(["partners_children", "%s：相手が 3 人いて、子もいる。子へ下りる線が重なって、どの相手との子かが読みにくくなることがある。図を画像で確かめる" % pid])
+                warnings.append(["partners_children", "%s：相手が 3 人いて、子もいる。子へ下りる線が、記号の下に回した線をまたぐ。どの相手との子かが読み取れるかを、図を画像で確かめる" % pid])
         done = set()
         for pid in ids:
             for x in pmap[pid].get("partners") or []:
