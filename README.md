@@ -16,11 +16,11 @@ Claude 用の自作 Agent Skills を 4 本、公開しています。考える�
 **カスタムスキルの利用には Pro 以上のプランが必要です**（Free では設定項目が出ません）。
 
 1. [Releases](https://github.com/kazumasakawahara/claude-skills/releases) から使いたいスキルの ZIP（`deliberation-sim.zip` 等）をダウンロードする
-2. claude.ai の **設定 → カスタマイズ → スキル** を開く
-3. **アップロード** を押し、ダウンロードした ZIP を選ぶ
+2. claude.ai の **プラグイン** のページ（<https://claude.ai/plugins>）を開く
+3. **追加 → プラグインをアップロード** を選び、ダウンロードした ZIP を選んで **アップロード** を押す（2026 年 11 月時点の画面。項目の名前や場所は変わることがあります）
 4. 新しい会話を始めて、上の表の「使う場面」の言い方で頼む。スキルは自動で選ばれます（選ばれないときは「deliberation-sim を使って」のようにスキル名を言えば起動します）
 
-ZIP は 1 スキル 1 本です。複数使うなら、その数だけアップロードしてください。更新するときは同じ手順で置き換えます。
+ZIP は 1 スキル 1 本です。複数使うなら、その数だけアップロードしてください。更新するときは、プラグインの一覧でそのスキルの **その他のアクション → 新しいバージョンをアップロード** を選びます（ここで選べるのは `.skill` か `.md` だけなので、ZIP の拡張子を `.skill` に変えてから選びます）。
 
 ## 入れ方（Claude Code）
 
@@ -50,14 +50,14 @@ marketplace 名は `kawahara-skills` です。プラグイン名はスキル名�
 
 ## English
 
-Four Japanese-language Agent Skills for Claude: **deliberation-sim** (a multi-persona deliberation simulator for "should we / which one" decisions), **hypothesis-arena** (a competing-hypotheses simulator for "why / which theory" questions that ends with a discriminating reading list), **acceptance-inspector** (an independent acceptance-inspection role that checks an AI's "done" claim against explicit criteria and reports evidence per item, including what it could not verify), and **genogram** (draws a family-relationship diagram centered on one person as an SVG with a deterministic script, and notes unstated kinship as "not recorded" instead of guessing it). Install on claude.ai / Claude Desktop (Pro or higher) by uploading a ZIP from [Releases](https://github.com/kazumasakawahara/claude-skills/releases) under Settings → Customize → Skills, or in Claude Code with `/plugin marketplace add kazumasakawahara/claude-skills` and `/plugin install <skill>@kawahara-skills`. The skills' prompts and outputs are in Japanese.
+Four Japanese-language Agent Skills for Claude: **deliberation-sim** (a multi-persona deliberation simulator for "should we / which one" decisions), **hypothesis-arena** (a competing-hypotheses simulator for "why / which theory" questions that ends with a discriminating reading list), **acceptance-inspector** (an independent acceptance-inspection role that checks an AI's "done" claim against explicit criteria and reports evidence per item, including what it could not verify), and **genogram** (draws a family-relationship diagram centered on one person as an SVG with a deterministic script, and notes unstated kinship as "not recorded" instead of guessing it). Install on claude.ai / Claude Desktop (Pro or higher) by uploading a ZIP from [Releases](https://github.com/kazumasakawahara/claude-skills/releases) on the Plugins page (<https://claude.ai/plugins>; Add → Upload plugin, as of November 2026), or in Claude Code with `/plugin marketplace add kazumasakawahara/claude-skills` and `/plugin install <skill>@kawahara-skills`. The skills' prompts and outputs are in Japanese.
 
 ## 配布物の作り方（メンテナ向け）
 
 ```
 scripts/check-parity.sh          # LEDGER 写しのずれ・local.md の混入・固有語の混入を検査（0 終了で合格）
                                  # 固有語検査は追跡外の scripts/local-terms.txt があるときだけ動く（保守者用。無ければ省略）
-scripts/build-release.sh v0.1.0  # git archive から dist/<name>.zip を 4 本生成（追跡外ファイルは構造的に入らない）
+scripts/build-release.sh v0.2.0  # git archive から dist/<name>.zip を 4 本生成（追跡外ファイルは構造的に入らない）
 ```
 
 ## ライセンス
